@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>My Notifications</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .notif-list {
+            max-width: 600px;
+            margin: 40px auto;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.10);
+            padding: 32px;
+        }
+
+        .notif-list h2 {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .notif-item {
+            background: #e3eafc;
+            border-left: 6px solid #1976d2;
+            border-radius: 8px;
+            margin-bottom: 18px;
+            padding: 16px 18px;
+            font-size: 16px;
+            color: #222;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="notif-list">
+        <h2>My Notifications</h2>
+        <div id="notifContent"></div>
+        <div style="text-align:center;margin-top:18px;">
+            <a href="index.html">&larr; Back to Venue Search</a>
+        </div>
+    </div>
+    <script>
+        const fullname = sessionStorage.getItem('fullname');
+        fetch('get_notifications.php')
+            .then(r => r.json())
+            .then(notifs => {
+                fetch('bookings.json')
+                    .then(r => r.json())
+                    .then(bookings => {
+                        fetch('get_venues.php')
+                            .then(r => r.json())
+                            .then(venues => {
+                                let msg = '';
+                                notifs.forEach(n => {
+                                    const b = bookings[n.idx];
+                                    if (b && b.booked_by === fullname) {
+                                        const venue = venues.find(v => String(v.id) === String(b.venue_id));
+                                        const venueName = venue ? venue.name : b.venue_id;
+                                        if (n.type === 'given') msg += `<div class='notif-item'>Guard has given you the key for <b>${venueName}</b> on ${b.date}.</div>`;
+                                        if (n.type === 'returned') msg += `<div class='notif-item'>Guard has marked the key as returned for <b>${venueName}</b> on ${b.date}.</div>`;
+                                    }
+                                });
+                                document.getElementById('notifContent').innerHTML = msg || '<div style="color:gray;">No notifications yet.</div>';
+                            });
+                    });
+            });
+    </script>
+</body>
+
+</html>
