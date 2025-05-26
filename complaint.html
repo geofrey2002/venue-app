@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Submit a Complaint</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .complaint-container {
+            max-width: 500px;
+            margin: 60px auto;
+            background: #fff;
+            padding: 36px;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.10);
+        }
+
+        .complaint-container h2 {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .complaint-container textarea {
+            width: 100%;
+            margin-bottom: 16px;
+        }
+
+        .complaint-container button {
+            width: 100%;
+        }
+
+        .complaint-success {
+            color: green;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .complaint-error {
+            color: red;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="complaint-container">
+        <h2>Submit a Complaint</h2>
+        <div id="complaintMsg"></div>
+        <form id="complaintForm">
+            <textarea id="complaintText" rows="4" placeholder="Enter your complaint here..." required></textarea>
+            <button type="submit">Submit Complaint</button>
+        </form>
+        <div style="text-align:center;margin-top:18px;">
+            <a href="index.html">&larr; Back to Venue Search</a>
+        </div>
+    </div>
+    <script>
+        document.getElementById('complaintForm').onsubmit = function (e) {
+            e.preventDefault();
+            const text = document.getElementById('complaintText').value;
+            const user = sessionStorage.getItem('fullname') || 'Anonymous';
+            fetch('submit_complaint.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `user=${encodeURIComponent(user)}&text=${encodeURIComponent(text)}`
+            })
+                .then(r => r.text())
+                .then(msg => {
+                    document.getElementById('complaintMsg').innerHTML = msg;
+                    document.getElementById('complaintForm').reset();
+                });
+        };
+    </script>
+</body>
+
+</html>
