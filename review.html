@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Review Booked Venues - Admin</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 30px;
+        }
+
+        .admin-table th,
+        .admin-table td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .admin-table th {
+            background: #f0f0f0;
+        }
+
+        .dashboard-section {
+            background: #f8faff;
+            border-radius: 10px;
+            padding: 24px;
+            margin-top: 32px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .dashboard-section h2 {
+            margin-top: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Admin Dashboard</h1>
+        <div id="adminInfo" style="margin-bottom: 24px;"></div>
+        <div style="display: flex; flex-wrap: wrap; gap: 32px;">
+            <div class="dashboard-section">
+                <h2>🔒 Lock Venue</h2>
+                <form id="lockVenueForm" style="margin-bottom:16px;">
+                    <label for="lockVenue">Venue:</label>
+                    <select id="lockVenue" required style="margin-bottom:10px;"></select>
+                    <label for="lockReason">Reason:</label>
+                    <input type="text" id="lockReason" required placeholder="Enter reason for locking"
+                        style="margin-bottom:10px;">
+                    <button type="submit">Lock Venue</button>
+                </form>
+                <div id="lockVenueMsg"></div>
+            </div>
+            <div class="dashboard-section">
+                <h2>📋 Complaints</h2>
+                <div id="complaintsSection"
+                    style="max-height:180px; overflow-y:auto; background:#fff; border-radius:7px; padding:10px;"></div>
+            </div>
+            <div class="dashboard-section">
+                <h2>📅 Booked Venues</h2>
+                <table class="admin-table" id="bookingsTable">
+                    <thead>
+                        <tr>
+                            <th>Venue ID</th>
+                            <th>Date</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Booked By</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="dashboard-section">
+                <h2>🔍 Free Venues</h2>
+                <form id="freeVenuesForm" style="margin-bottom:16px;">
+                    <label for="freeDate">Date:</label>
+                    <input type="date" id="freeDate" required>
+                    <label for="freeFrom">From:</label>
+                    <input type="time" id="freeFrom" required>
+                    <label for="freeTo">To:</label>
+                    <input type="time" id="freeTo" required>
+                    <button type="submit">Search Free Venues</button>
+                </form>
+                <div id="freeVenuesResults"></div>
+            </div>
+            <div class="dashboard-section">
+                <h2>🛡️ Guard Activity Log</h2>
+                <div id="guardActivitySection"
+                    style="max-height:180px; overflow-y:auto; background:#fff; border-radius:7px; padding:10px;"></div>
+            </div>
+        </div>
+        <button id="logoutBtn" style="margin-top:32px; float:right;">Logout</button>
+    </div>
+    <script>
+        // Only allow admin
+        const role = sessionStorage.getItem('userRole');
+        const fullname = sessionStorage.getItem('fullname');
+        if (role !== 'admin') {
+            window.location.href = 'login.html';
+        }
+        document.getElementById('adminInfo').innerHTML = `<b>Logged in as:</b> ${fullname} (${role})`;
+        // Booked venues table
+        fetch('bookings.json')
+            .then(r => r.json())
+            .then(data => {
+                const tbody = document.querySelector('#bookingsTable tbody');
+                tbody.innerHTML = '';
+                data.forEach(b => {
+                    tbody.innerHTML += `<tr><td>${b.venue_id}</td><td>${b.date}</td><td>${b.from}</td><td>${b.to}</td><td>${b.booked_by ? b.booked_by : ''}</td></tr>`;
+                });
+            });
+        // Free venues search
+        document.getElementById('freeVenuesForm').onsubmit = function (e) {
+            e.preventDefault();
+            const date = document.getElementById('freeDate').value;
+            const from = document.getElementById('freeFrom').value;
+            const to = document.getElementById('freeTo').value;
+            fetch(`get_venues.php?date=${encodeURIComponent(date)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
+                .then(r => r.json())
+                .then(venues => {
+                    const resultsDiv = document.getElementById('freeVenuesResults');
+                    resultsDiv.innerHTML = '';
+                    if (venues.length === 0) {
+                        resultsDiv.innerHTML = '<div style="color:red;">No free venues found for the selected time.</div>';
+                        return;
+                    }
+                    venues.forEach(venue => {
+                        resultsDiv.innerHTML += `<div style="background:#f8f8f8;padding:10px;margin-bottom:8px;border-left:3px solid #007bff;"><b>${venue.name}</b> (Capacity: ${venue.capacity})<br>Features: ${venue.features}</div>`;
+                    });
+                });
+        };
+        // Populate venue dropdown for locking
+        fetch('get_venues.php')
+            .then(r => r.json())
+            .then(venues => {
+                const select = document.getElementById('lockVenue');
+                venues.forEach(v => {
+                    select.innerHTML += `<option value="${v.id}">${v.name}</option>`;
+                });
+            });
+        // Lock venue form submit
+        document.getElementById('lockVenueForm').onsubmit = function (e) {
+            e.preventDefault();
+            const venueId = document.getElementById('lockVenue').value;
+            const reason = document.getElementById('lockReason').value;
+            fetch('lock_venue.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `venue_id=${encodeURIComponent(venueId)}&reason=${encodeURIComponent(reason)}`
+            })
+                .then(r => r.text())
+                .then(msg => {
+                    document.getElementById('lockVenueMsg').innerHTML = msg;
+                });
+        };
+        // Guard login logic
+        document.getElementById('guardLoginForm').onsubmit = function (e) {
+            e.preventDefault();
+            const guardName = document.getElementById('guardName').value;
+            sessionStorage.setItem('guardName', guardName);
+            document.getElementById('guardSection').style.display = '';
+            loadGuardBookings();
+        };
+        function loadGuardBookings() {
+            fetch('bookings.json')
+                .then r => r.json())
+                .then(data => {
+                    fetch('key_given.json')
+                        .then(r => r.json())
+                        .then(keys => {
+                            const tbody = document.querySelector('#guardBookingsTable tbody');
+                            tbody.innerHTML = '';
+                            data.forEach((b, idx) => {
+                                const checked = keys && keys[idx] ? 'checked' : '';
+                                tbody.innerHTML += `<tr><td>${b.venue_id}</td><td>${b.date}</td><td>${b.from}</td><td>${b.to}</td><td>${b.booked_by ? b.booked_by : ''}</td><td><input type='checkbox' data-idx='${idx}' ${checked}></td></tr>`;
+                            });
+                            // Add event listeners for checkboxes
+                            document.querySelectorAll('#guardBookingsTable input[type=checkbox]').forEach(cb => {
+                                cb.onchange = function () {
+                                    const idx = this.getAttribute('data-idx');
+                                    fetch('set_key_given.php', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                                        body: `idx=${encodeURIComponent(idx)}&given=${this.checked ? 1 : 0}`
+                                    });
+                                };
+                            });
+                        });
+                });
+        }
+        // Load complaints for admin review
+        function loadComplaints() {
+            fetch('get_complaints.php')
+                .then(r => r.json())
+                .then(complaints => {
+                    const section = document.getElementById('complaintsSection');
+                    if (!complaints.length) {
+                        section.innerHTML = '<div style="color:gray;">No complaints submitted.</div>';
+                        return;
+                    }
+                    section.innerHTML = '<ul style="padding-left:20px;">' +
+                        complaints.map(c => `<li><b>${c.user}</b> (${c.date}):<br>${c.text}</li>`).join('') +
+                        '</ul>';
+                });
+        }
+        // Load guard activity for admin
+        function loadGuardActivity() {
+            fetch('key_given.json')
+                .then(r => r.json())
+                .then(keys => {
+                    fetch('bookings.json')
+                        .then(r => r.json())
+                        .then(bookings => {
+                            let html = '<ul style="padding-left:20px;">';
+                            bookings.forEach((b, idx) => {
+                                if (keys[idx] && (keys[idx].given || keys[idx].returned)) {
+                                    html += `<li><b>${b.booked_by}</b> (${b.date}, Venue: ${b.venue_id}): `;
+                                    if (keys[idx].given) html += '<span style="color:green;">Key Given</span> ';
+                                    if (keys[idx].returned) html += '<span style="color:blue;">Key Returned</span>';
+                                    html += '</li>';
+                                }
+                            });
+                            html += '</ul>';
+                            document.getElementById('guardActivitySection').innerHTML = html;
+                        });
+                });
+        }
+        loadComplaints();
+        loadGuardActivity();
+        document.getElementById('logoutBtn').onclick = function () {
+            fetch('logout.php').then(() => {
+                sessionStorage.clear();
+                window.location.href = 'login.html';
+            });
+        };
+    </script>
+</body>
+
+</html>

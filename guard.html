@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Guard Venue Key Management</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 30px;
+        }
+
+        .admin-table th,
+        .admin-table td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .admin-table th {
+            background: #f0f0f0;
+        }
+
+        .notif {
+            color: green;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Venue Key Management (Guard)</h1>
+        <div id="guardInfo"></div>
+        <table class="admin-table" id="guardBookingsTable">
+            <thead>
+                <tr>
+                    <th>Venue ID</th>
+                    <th>Date</th>
+                    <th>From</th>
+                    <th>To</th>
+                    <th>Booked By</th>
+                    <th>Key Given</th>
+                    <th>Key Returned</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <button id="logoutBtn">Logout</button>
+    </div>
+    <script>
+        // Only allow guard
+        const role = sessionStorage.getItem('userRole');
+        const fullname = sessionStorage.getItem('fullname');
+        if (role !== 'guard') {
+            window.location.href = 'login.html';
+        }
+        document.getElementById('guardInfo').innerHTML = `<b>Logged in as:</b> ${fullname} (${role})`;
+        function loadGuardBookings() {
+            fetch('bookings.json')
+                .then(r => r.json())
+                .then(data => {
+                    fetch('key_given.json')
+                        .then(r => r.json())
+                        .then(keys => {
+                            const tbody = document.querySelector('#guardBookingsTable tbody');
+                            tbody.innerHTML = '';
+                            data.forEach((b, idx) => {
+                                const keyGiven = keys && keys[idx] && keys[idx].given ? 'checked' : '';
+                                const keyReturned = keys && keys[idx] && keys[idx].returned ? 'checked' : '';
+                                tbody.innerHTML += `<tr><td>${b.venue_id}</td><td>${b.date}</td><td>${b.from}</td><td>${b.to}</td><td>${b.booked_by ? b.booked_by : ''}</td><td><input type='checkbox' data-idx='${idx}' data-type='given' ${keyGiven}></td><td><input type='checkbox' data-idx='${idx}' data-type='returned' ${keyReturned}></td></tr>`;
+                            });
+                            // Add event listeners for checkboxes
+                            document.querySelectorAll('#guardBookingsTable input[type=checkbox]').forEach(cb => {
+                                cb.onchange = function () {
+                                    const idx = this.getAttribute('data-idx');
+                                    const type = this.getAttribute('data-type');
+                                    fetch('set_key_given.php', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                                        body: `idx=${encodeURIComponent(idx)}&type=${type}&checked=${this.checked ? 1 : 0}`
+                                    })
+                                        .then(r => r.text())
+                                        .then(msg => {
+                                            // Optionally show notification
+                                        });
+                                };
+                            });
+                        });
+                });
+        }
+        loadGuardBookings();
+        document.getElementById('logoutBtn').onclick = function () {
+            fetch('logout.php').then(() => {
+                sessionStorage.clear();
+                window.location.href = 'login.html';
+            });
+        };
+    </script>
+</body>
+
+</html>
